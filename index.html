@@ -155,8 +155,8 @@
 
 <div id="info-display">
   <h4>🌞 太阳与影子</h4>
-  <div class="info-row"><span class="info-key">观测点</span><span class="info-val" id="val-place">北京</span></div>
-  <div class="info-row"><span class="info-key">纬度</span><span class="info-val" id="val-lat">39.9°N</span></div>
+  <div class="info-row"><span class="info-key">观测点</span><span class="info-val" id="val-place">桂林</span></div>
+  <div class="info-row"><span class="info-key">纬度</span><span class="info-val" id="val-lat">25.3°N</span></div>
   <div class="info-row"><span class="info-key">当前时刻</span><span class="info-val" id="val-time">06:00</span></div>
   <div class="info-row"><span class="info-key">日出/日落</span><span class="info-val" id="val-rise-set">06:00 / 18:00</span></div>
   <div class="info-row"><span class="info-key">太阳方位</span><span class="info-val" id="val-dir">东南</span></div>
@@ -172,11 +172,13 @@
   <div class="ctrl-section">
     <span class="ctrl-label">📍 观测点</span>
     <select id="point-select" class="point-select" onchange="setObservationPoint(this.value)">
+      <option value="guilin">桂林（25.3°N）</option>
       <option value="beijing">北京（39.9°N）</option>
+      <option value="shanghai">上海（31.2°N）</option>
       <option value="guangzhou">广州（23.1°N）</option>
       <option value="harbin">哈尔滨（45.8°N）</option>
-      <option value="singapore">新加坡（1.3°N）</option>
-      <option value="sydney">悉尼（33.9°S）</option>
+      <option value="lhasa">拉萨（29.7°N）</option>
+      <option value="urumqi">乌鲁木齐（43.8°N）</option>
     </select>
   </div>
 
@@ -266,11 +268,13 @@ const POLE_H = 88;
 const POLE_W = 10;
 
 const OBS_POINTS = {
+  guilin:    { label: "桂林", lat: 25.3 },
   beijing:   { label: "北京", lat: 39.9 },
+  shanghai:  { label: "上海", lat: 31.2 },
   guangzhou: { label: "广州", lat: 23.1 },
   harbin:    { label: "哈尔滨", lat: 45.8 },
-  singapore: { label: "新加坡", lat: 1.3 },
-  sydney:    { label: "悉尼", lat: -33.9 },
+  lhasa:     { label: "拉萨", lat: 29.7 },
+  urumqi:    { label: "乌鲁木齐", lat: 43.8 },
 };
 
 const MODES = {
@@ -280,7 +284,7 @@ const MODES = {
 };
 
 let currentMode = "equinox";
-let currentPoint = "beijing";
+let currentPoint = "guilin";
 let sunProgress = 0.08;
 let autoPlay = false;
 let autoSpeed = 1;
