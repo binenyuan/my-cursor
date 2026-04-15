@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太阳方位寻影仪</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
+    user-select: none;
+  }
+
+  #sky-canvas {
+    position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0;
+  }
+
+  #main-scene {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    z-index: 1; pointer-events: none;
+  }
+
+  #scene-wrapper {
+    position: relative;
+    transform-origin: center center;
+    pointer-events: auto;
+  }
+
+  #control-panel {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(8px);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    width: 245px;
+    font-size: 13px;
+    color: #334;
+    transition: opacity 0.3s;
+  }
+
+  #control-panel h3 {
+    font-size: 15px; font-weight: 700; text-align: center;
+    color: #e67e22; margin-bottom: 10px; letter-spacing: 1px;
+  }
+
+  .ctrl-section { margin-bottom: 10px; }
+  .ctrl-label {
+    font-weight: 600; color: #555; margin-bottom: 4px; display: block; font-size: 12px;
+  }
+
+  .point-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1.5px solid #b8d1e8;
+    border-radius: 8px;
+    background: #f5fbff;
+    color: #335;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .point-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52,152,219,0.15);
+  }
+
+  .mode-btns { display: flex; flex-direction: column; gap: 4px; }
+  .mode-btn {
+    padding: 5px 8px; border: 1.5px solid #e0b96a; border-radius: 8px;
+    background: #fff8ee; cursor: pointer; font-size: 12px; color: #a06010;
+    transition: all 0.2s; text-align: center;
+  }
+  .mode-btn:hover { background: #ffe5b0; }
+  .mode-btn.active { background: #f5a623; color: #fff; border-color: #f5a623; font-weight: 700; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+  .toggle-label { font-size: 12px; color: #445; }
+  .toggle-switch { position: relative; width: 36px; height: 20px; cursor: pointer; }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0; background: #ccc; border-radius: 10px; transition: 0.3s;
+  }
+  .toggle-switch input:checked + .toggle-track { background: #4caf50; }
+  .toggle-thumb {
+    position: absolute; width: 16px; height: 16px; background: #fff;
+    border-radius: 50%; top: 2px; left: 2px; transition: 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .toggle-switch input:checked ~ .toggle-thumb { left: 18px; }
+
+  .speed-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .speed-btn {
+    flex: 1; padding: 4px 2px; border: 1px solid #8bc; border-radius: 6px;
+    background: #eaf5ff; cursor: pointer; font-size: 11px; color: #357;
+    transition: all 0.2s; text-align: center;
+  }
+  .speed-btn:hover { background: #c5e5ff; }
+  .speed-btn.active { background: #3498db; color: #fff; border-color: #3498db; }
+
+  .action-row { display: flex; gap: 6px; }
+  .action-btn {
+    flex: 1; padding: 7px 4px; border: none; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-play { background: #27ae60; color: #fff; }
+  .btn-play:hover { background: #219a52; }
+  .btn-pause { background: #e67e22; color: #fff; }
+  .btn-pause:hover { background: #d35400; }
+  .btn-reset { background: #95a5a6; color: #fff; }
+  .btn-reset:hover { background: #7f8c8d; }
+
+  .zoom-row { display: flex; align-items: center; gap: 6px; }
+  .zoom-row input[type=range] { flex: 1; accent-color: #3498db; }
+  .zoom-val { font-size: 11px; color: #888; width: 30px; text-align: right; }
+
+  #watermark {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 200; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+    pointer-events: none; white-space: nowrap; color: rgba(255,255,255,0.92);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.55), 0 0 30px rgba(255,200,80,0.5);
+    animation: breathe 3s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%   { opacity: 0.55; text-shadow: 0 2px 12px rgba(0,0,0,0.55), 0 0 18px rgba(255,200,80,0.3); transform: translateX(-50%) scale(1); }
+    50%  { opacity: 1;    text-shadow: 0 2px 20px rgba(0,0,0,0.6),  0 0 40px rgba(255,220,100,0.8), 0 0 70px rgba(255,180,50,0.4); transform: translateX(-50%) scale(1.06); }
+    100% { opacity: 0.55; text-shadow: 0 2px 12px rgba(0,0,0,0.55), 0 0 18px rgba(255,200,80,0.3); transform: translateX(-50%) scale(1); }
+  }
+
+  #info-display {
+    position: fixed; top: 12px; left: 12px; z-index: 100;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
+    border-radius: 14px; padding: 10px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    font-size: 13px; color: #334; min-width: 190px;
+  }
+  #info-display h4 { font-size: 14px; font-weight: 700; color: #e67e22; margin-bottom: 6px; }
+  #info-display .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; gap: 10px; }
+  #info-display .info-key { color: #888; font-size: 12px; }
+  #info-display .info-val { font-weight: 600; color: #334; font-size: 12px; text-align: right; }
+
+  #panel-toggle {
+    position: fixed; top: 12px; right: 265px; z-index: 101;
+    background: rgba(255,255,255,0.85); border-radius: 10px;
+    padding: 7px 12px; cursor: pointer; font-size: 12px; color: #557;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12); backdrop-filter: blur(6px);
+  }
+  #panel-toggle:hover { background: rgba(255,255,255,0.98); }
+</style>
+</head>
+<body>
+<canvas id="sky-canvas"></canvas>
+
+<div id="info-display">
+  <h4>🌞 太阳与影子</h4>
+  <div class="info-row"><span class="info-key">观测点</span><span class="info-val" id="val-place">桂林</span></div>
+  <div class="info-row"><span class="info-key">纬度</span><span class="info-val" id="val-lat">25.3°N</span></div>
+  <div class="info-row"><span class="info-key">当前时刻</span><span class="info-val" id="val-time">06:00</span></div>
+  <div class="info-row"><span class="info-key">日出/日落</span><span class="info-val" id="val-rise-set">06:00 / 18:00</span></div>
+  <div class="info-row"><span class="info-key">太阳方位</span><span class="info-val" id="val-dir">东南</span></div>
+  <div class="info-row"><span class="info-key">影子方向</span><span class="info-val" id="val-shadow">西北</span></div>
+  <div class="info-row"><span class="info-key">影子长度</span><span class="info-val" id="val-len">最长</span></div>
+</div>
+
+<div id="panel-toggle" onclick="togglePanel()">☰ 控制面板</div>
+
+<div id="control-panel">
+  <h3>🌤 模拟器控制</h3>
+
+  <div class="ctrl-section">
+    <span class="ctrl-label">📍 观测点</span>
+    <select id="point-select" class="point-select" onchange="setObservationPoint(this.value)">
+      <option value="guilin">桂林（25.3°N）</option>
+      <option value="beijing">北京（39.9°N）</option>
+      <option value="shanghai">上海（31.2°N）</option>
+      <option value="guangzhou">广州（23.1°N）</option>
+      <option value="harbin">哈尔滨（45.8°N）</option>
+      <option value="lhasa">拉萨（29.7°N）</option>
+      <option value="urumqi">乌鲁木齐（43.8°N）</option>
+    </select>
+  </div>
+
+  <div class="ctrl-section">
+    <span class="ctrl-label">📅 季节模式</span>
+    <div class="mode-btns">
+      <div class="mode-btn" data-mode="winter" onclick="setMode('winter')">❄️ 冬至附近</div>
+      <div class="mode-btn active" data-mode="equinox" onclick="setMode('equinox')">🌸 春分/秋分</div>
+      <div class="mode-btn" data-mode="summer" onclick="setMode('summer')">☀️ 夏至附近</div>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <span class="ctrl-label">▶ 演示控制</span>
+    <div class="action-row" style="margin-bottom:6px;">
+      <button class="action-btn btn-play" onclick="startAuto()">▶ 播放</button>
+      <button class="action-btn btn-pause" onclick="stopAuto()">⏸ 暂停</button>
+      <button class="action-btn btn-reset" onclick="resetScene()">↺ 重置</button>
+    </div>
+    <span class="ctrl-label">速度</span>
+    <div class="speed-row">
+      <div class="speed-btn" data-spd="0.3" onclick="setSpeed(0.3)">慢</div>
+      <div class="speed-btn active" data-spd="1" onclick="setSpeed(1)">中</div>
+      <div class="speed-btn" data-spd="2.5" onclick="setSpeed(2.5)">快</div>
+      <div class="speed-btn" data-spd="5" onclick="setSpeed(5)">极快</div>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <span class="ctrl-label">👁 显示选项</span>
+    <div class="toggle-row">
+      <span class="toggle-label">太阳轨迹</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-orbit" checked onchange="redraw()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">太阳光线</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-ray" checked onchange="redraw()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">影子</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-shadow" checked onchange="redraw()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">方位圆盘</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-compass" checked onchange="redraw()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <span class="ctrl-label">🔍 缩放</span>
+    <div class="zoom-row">
+      <input type="range" id="zoom-slider" min="50" max="150" value="100" oninput="setZoom(this.value)">
+      <span class="zoom-val" id="zoom-label">100%</span>
+    </div>
+  </div>
+</div>
+
+<div id="main-scene">
+  <div id="scene-wrapper">
+    <canvas id="scene-canvas"></canvas>
+  </div>
+</div>
+
+<div id="watermark">✦ 太阳方位寻影仪✦</div>
+
+<script>
+const W = 700, H = 700;
+const CX = W / 2, CY = H / 2;
+const COMPASS_R = 255;
+const POLE_H = 88;
+const POLE_W = 10;
+
+const OBS_POINTS = {
+  guilin:    { label: "桂林", lat: 25.3 },
+  beijing:   { label: "北京", lat: 39.9 },
+  shanghai:  { label: "上海", lat: 31.2 },
+  guangzhou: { label: "广州", lat: 23.1 },
+  harbin:    { label: "哈尔滨", lat: 45.8 },
+  lhasa:     { label: "拉萨", lat: 29.7 },
+  urumqi:    { label: "乌鲁木齐", lat: 43.8 },
+};
+
+const MODES = {
+  winter:  { label: "冬至附近", decl: -23.44 },
+  equinox: { label: "春分/秋分", decl: 0 },
+  summer:  { label: "夏至附近", decl: 23.44 },
+};
+
+let currentMode = "equinox";
+let currentPoint = "guilin";
+let sunProgress = 0.08;
+let autoPlay = false;
+let autoSpeed = 1;
+let zoom = 1.0;
+let animId = null;
+let lastTs = null;
+let isDragging = false;
+let sunEl = 0, sunAz = 90;
+
+const skyCanvas = document.getElementById("sky-canvas");
+const skyCtx = skyCanvas.getContext("2d");
+const sceneCanvas = document.getElementById("scene-canvas");
+const ctx = sceneCanvas.getContext("2d");
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function geogToScreenAngle(geogAz) {
+  return geogAz - 180;
+}
+
+function compassPos(screenAngleDeg, radius) {
+  const rad = screenAngleDeg * Math.PI / 180;
+  return { x: CX + radius * Math.sin(rad), y: CY - radius * Math.cos(rad) };
+}
+
+function getActiveSolarConfig() {
+  const point = OBS_POINTS[currentPoint];
+  const decl = MODES[currentMode].decl;
+
+  const latRad = point.lat * Math.PI / 180;
+  const declRad = decl * Math.PI / 180;
+
+  const noonElRaw = 90 - Math.abs(point.lat - decl);
+  const noonEl = clamp(noonElRaw, 2, 85);
+
+  const riseArg = clamp(Math.sin(declRad) / Math.max(Math.cos(latRad), 0.01), -1, 1);
+  const riseAz = Math.acos(riseArg) * 180 / Math.PI;
+  const setAz = 360 - riseAz;
+
+  const cosH0 = -Math.tan(latRad) * Math.tan(declRad);
+  let dayLength;
+  if (cosH0 >= 1) dayLength = 0;
+  else if (cosH0 <= -1) dayLength = 24;
+  else dayLength = (2 * Math.acos(cosH0) * 180 / Math.PI) / 15;
+
+  dayLength = clamp(dayLength, 4, 20);
+  const sunrise = 12 - dayLength / 2;
+  const sunset = 12 + dayLength / 2;
+
+  return { riseAz, setAz, noonEl, sunrise, sunset, dayLength };
+}
+
+function sunOrbitPos(t) {
+  const cfg = getActiveSolarConfig();
+  const el = cfg.noonEl * Math.sin(t * Math.PI);
+  let az;
+  if (t <= 0.5) {
+    const u = t / 0.5;
+    az = cfg.riseAz + (180 - cfg.riseAz) * u;
+  } else {
+    const u = (t - 0.5) / 0.5;
+    az = 180 + (cfg.setAz - 180) * u;
+  }
+  return { az, el };
+}
+
+function getSunScreenPos(az, el) {
+  if (el < 0) return null;
+  const sa = geogToScreenAngle(az);
+  const r = COMPASS_R * 0.86 * (1 - el / 90);
+  return compassPos(sa, r);
+}
+
+function getShadow(az, el) {
+  const shadowAz = (az + 180) % 360;
+  const screenAng = geogToScreenAngle(shadowAz);
+  let len = 0;
+  if (el > 1.5) {
+    const elRad = el * Math.PI / 180;
+    len = Math.min(POLE_H / Math.tan(elRad), COMPASS_R * 0.82);
+  } else {
+    len = COMPASS_R * 0.82;
+  }
+  return { shadowAz, screenAng, len };
+}
+
+function resizeCanvases() {
+  skyCanvas.width = window.innerWidth;
+  skyCanvas.height = window.innerHeight;
+  sceneCanvas.width = W;
+  sceneCanvas.height = H;
+  redraw();
+}
+
+window.addEventListener("resize", resizeCanvases);
+
+function drawSky() {
+  const { el } = sunOrbitPos(sunProgress);
+  const sw = skyCanvas.width, sh = skyCanvas.height;
+
+  skyCtx.clearRect(0, 0, sw, sh);
+  const grad = skyCtx.createLinearGradient(0, 0, 0, sh * 0.62);
+  if (el < 0) {
+    grad.addColorStop(0, "#050818");
+    grad.addColorStop(1, "#0f133a");
+  } else if (el < 3) {
+    grad.addColorStop(0, "#0f1d3a");
+    grad.addColorStop(0.45, "#8b3a1a");
+    grad.addColorStop(1, "#e8703a");
+  } else if (el < 8) {
+    grad.addColorStop(0, "#17356e");
+    grad.addColorStop(0.4, "#d4622a");
+    grad.addColorStop(1, "#f5c06a");
+  } else if (el < 20) {
+    grad.addColorStop(0, "#1e5fa0");
+    grad.addColorStop(0.55, "#5aaae0");
+    grad.addColorStop(1, "#d4e8f5");
+  } else if (el < 45) {
+    grad.addColorStop(0, "#1053a8");
+    grad.addColorStop(0.5, "#3490d8");
+    grad.addColorStop(1, "#84c8f0");
+  } else {
+    grad.addColorStop(0, "#083d94");
+    grad.addColorStop(0.5, "#1567c8");
+    grad.addColorStop(1, "#5aaae0");
+  }
+  skyCtx.fillStyle = grad;
+  skyCtx.fillRect(0, 0, sw, sh);
+
+  if (el >= 0 && el < 18) {
+    const glowY = sh * 0.56;
+    const alpha = Math.max(0, 0.75 - el * 0.038);
+    const glow = skyCtx.createRadialGradient(sw / 2, glowY, 0, sw / 2, glowY, sw * 0.55);
+    glow.addColorStop(0, `rgba(255,90,20,${alpha})`);
+    glow.addColorStop(0.35, `rgba(255,120,30,${alpha * 0.45})`);
+    glow.addColorStop(1, "rgba(255,80,10,0)");
+    skyCtx.fillStyle = glow;
+    skyCtx.fillRect(0, glowY - sh * 0.25, sw, sh * 0.4);
+  }
+
+  if (el > 4) drawClouds(skyCtx, sw, sh, el);
+  drawMountains(skyCtx, sw, sh, el);
+  drawGrass(skyCtx, sw, sh, el);
+}
+
+function drawCloud(c, x, y, scale, alpha, el) {
+  c.save();
+  c.globalAlpha = alpha;
+  const isWarm = el < 12;
+  const topColor = isWarm ? "rgba(255,230,180,0.95)" : "rgba(255,255,255,0.96)";
+  const midColor = isWarm ? "rgba(240,210,160,0.90)" : "rgba(240,245,255,0.92)";
+  const botColor = isWarm ? "rgba(210,180,140,0.70)" : "rgba(210,220,235,0.75)";
+  const shadowColor = isWarm ? "rgba(160,120,80,0.30)" : "rgba(150,165,200,0.35)";
+  c.translate(x, y);
+  c.scale(scale, scale);
+
+  const puffs = [
+    { rx: 0, ry: 0, r: 38 }, { rx: -36, ry: 8, r: 28 }, { rx: 36, ry: 8, r: 30 },
+    { rx: -18, ry: -18, r: 26 }, { rx: 18, ry: -20, r: 28 }, { rx: -52, ry: 18, r: 20 },
+    { rx: 52, ry: 18, r: 22 }, { rx: 0, ry: -30, r: 20 },
+  ];
+
+  puffs.forEach((p) => {
+    const grad = c.createRadialGradient(p.rx, p.ry + p.r * 0.3, p.r * 0.1, p.rx, p.ry + p.r * 0.4, p.r);
+    grad.addColorStop(0, shadowColor);
+    grad.addColorStop(1, "rgba(150,165,200,0)");
+    c.fillStyle = grad;
+    c.beginPath();
+    c.arc(p.rx, p.ry + p.r * 0.55, p.r * 0.9, 0, Math.PI * 2);
+    c.fill();
+  });
+
+  [...puffs].reverse().forEach((p) => {
+    const isTop = p.ry < -10;
+    const col = isTop ? topColor : (p.ry > 5 ? botColor : midColor);
+    const grad = c.createRadialGradient(p.rx - p.r * 0.25, p.ry - p.r * 0.25, p.r * 0.05, p.rx, p.ry, p.r);
+    grad.addColorStop(0, "rgba(255,255,255,0.98)");
+    grad.addColorStop(0.4, col);
+    grad.addColorStop(1, isTop ? midColor : botColor);
+    c.fillStyle = grad;
+    c.beginPath();
+    c.arc(p.rx, p.ry, p.r, 0, Math.PI * 2);
+    c.fill();
+  });
+
+  c.restore();
+}
+
+function drawClouds(c, sw, sh, el) {
+  const baseAlpha = Math.min(0.88, (el - 4) / 14 * 0.88);
+  const cloudDefs = [
+    { xp: 0.08, yp: 0.12, scale: 0.7, ao: 0.85 },
+    { xp: 0.30, yp: 0.08, scale: 1.0, ao: 1.0 },
+    { xp: 0.58, yp: 0.14, scale: 0.85, ao: 0.9 },
+    { xp: 0.80, yp: 0.09, scale: 0.75, ao: 0.8 },
+    { xp: 0.92, yp: 0.19, scale: 0.6, ao: 0.7 },
+  ];
+  cloudDefs.forEach((d) => drawCloud(c, sw * d.xp, sh * d.yp, d.scale, baseAlpha * d.ao, el));
+}
+
+function drawMountains(c, sw, sh, el) {
+  const horizonY = sh * 0.55;
+  const farAlpha = el < 3 ? 0.75 : el < 10 ? 0.68 : 0.58;
+  const farH = el < 3 ? "rgba(55,55,90," : el < 10 ? "rgba(90,105,145," : "rgba(125,148,190,";
+
+  c.save();
+  c.fillStyle = farH + farAlpha + ")";
+  c.beginPath();
+  c.moveTo(0, sh);
+  c.lineTo(0, horizonY + 20);
+  const farPeaks = [
+    [0, horizonY + 20], [0.05, horizonY - 38], [0.11, horizonY + 5], [0.18, horizonY - 72],
+    [0.24, horizonY - 12], [0.31, horizonY - 52], [0.38, horizonY + 8], [0.44, horizonY - 30],
+    [0.50, horizonY - 78], [0.57, horizonY - 18], [0.63, horizonY - 45], [0.70, horizonY + 3],
+    [0.76, horizonY - 60], [0.83, horizonY - 10], [0.90, horizonY - 55], [0.97, horizonY - 20],
+    [1, horizonY + 18],
+  ];
+  farPeaks.forEach(([xr, y]) => c.lineTo(sw * xr, y));
+  c.lineTo(sw, sh);
+  c.closePath();
+  c.fill();
+
+  const midCol = el < 3 ? "rgba(30,45,38,0.90)" : el < 10 ? "rgba(55,90,58,0.88)" : "rgba(65,120,65,0.85)";
+  c.fillStyle = midCol;
+  c.beginPath();
+  c.moveTo(0, sh);
+  c.lineTo(0, horizonY + 30);
+  const midPeaks = [
+    [0, horizonY + 30], [0.08, horizonY - 8], [0.15, horizonY + 12], [0.22, horizonY - 28],
+    [0.30, horizonY + 18], [0.38, horizonY - 18], [0.46, horizonY + 10], [0.54, horizonY - 35],
+    [0.62, horizonY + 5], [0.70, horizonY - 22], [0.78, horizonY + 14], [0.86, horizonY - 15],
+    [0.94, horizonY + 8], [1, horizonY - 10],
+  ];
+  midPeaks.forEach(([xr, y]) => c.lineTo(sw * xr, y));
+  c.lineTo(sw, sh);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+function drawGrass(c, sw, sh, el) {
+  const horizonY = sh * 0.55;
+  let g1, g2, g3;
+  if (el < 3) { g1 = "#0e1f0e"; g2 = "#1a301a"; g3 = "#253525"; }
+  else if (el < 10) { g1 = "#2a5c32"; g2 = "#3a7540"; g3 = "#4a8a50"; }
+  else if (el < 25) { g1 = "#389040"; g2 = "#50b058"; g3 = "#68c870"; }
+  else { g1 = "#44aa4e"; g2 = "#5cc865"; g3 = "#78dd82"; }
+  const grad = c.createLinearGradient(0, horizonY, 0, sh);
+  grad.addColorStop(0, g1);
+  grad.addColorStop(0.45, g2);
+  grad.addColorStop(1, g3);
+  c.fillStyle = grad;
+  c.fillRect(0, horizonY + 1, sw, sh - horizonY);
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, W, H);
+  const { az, el } = sunOrbitPos(sunProgress);
+  sunEl = el;
+  sunAz = az;
+  drawSceneBackground(el);
+  if (document.getElementById("tog-compass").checked) drawCompass();
+  if (document.getElementById("tog-shadow").checked) drawShadow(az, el);
+  drawPole();
+  if (document.getElementById("tog-orbit").checked) drawOrbit();
+  drawSunOnDisk(az, el);
+  if (document.getElementById("tog-ray").checked) drawRay(az, el);
+  updateInfoPanel(az, el);
+  drawSky();
+}
+
+function drawSceneBackground(el) {
+  ctx.save();
+  const ex = CX, ey = CY + 28;
+  const erx = COMPASS_R + 85, ery = (COMPASS_R + 85) * 0.50;
+  const groundGrad = ctx.createRadialGradient(ex, ey - ery * 0.25, 5, ex, ey, erx);
+  if (el < 5) {
+    groundGrad.addColorStop(0, "rgba(22,48,22,0.95)");
+    groundGrad.addColorStop(0.6, "rgba(16,40,18,0.85)");
+    groundGrad.addColorStop(1, "rgba(12,30,14,0.5)");
+  } else if (el < 15) {
+    groundGrad.addColorStop(0, "rgba(65,145,75,0.93)");
+    groundGrad.addColorStop(0.6, "rgba(50,115,60,0.83)");
+    groundGrad.addColorStop(1, "rgba(38,90,48,0.5)");
+  } else {
+    groundGrad.addColorStop(0, "rgba(90,200,105,0.93)");
+    groundGrad.addColorStop(0.6, "rgba(68,165,80,0.86)");
+    groundGrad.addColorStop(1, "rgba(50,130,62,0.5)");
+  }
+  ctx.fillStyle = groundGrad;
+  ctx.beginPath();
+  ctx.ellipse(ex, ey, erx, ery, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCompass() {
+  ctx.save();
+  const diskBg = ctx.createRadialGradient(CX - 50, CY - 50, 15, CX, CY, COMPASS_R);
+  diskBg.addColorStop(0, "rgba(248,242,218,0.74)");
+  diskBg.addColorStop(0.55, "rgba(232,218,178,0.62)");
+  diskBg.addColorStop(1, "rgba(205,188,142,0.46)");
+  ctx.fillStyle = diskBg;
+  ctx.beginPath();
+  ctx.arc(CX, CY, COMPASS_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  [0.25, 0.5, 0.75, 1.0].forEach((rf, i) => {
+    ctx.beginPath();
+    ctx.arc(CX, CY, COMPASS_R * rf, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(160,128,65,${0.14 + i * 0.07})`;
+    ctx.lineWidth = i === 3 ? 2 : 0.8;
+    ctx.stroke();
+  });
+
+  const dirs = [
+    { label: "南", geog: 180, color: "#b52a1a", size: 25 },
+    { label: "北", geog: 0, color: "#1a5ea8", size: 25 },
+    { label: "东", geog: 90, color: "#1a7a3a", size: 21 },
+    { label: "西", geog: 270, color: "#5e228a", size: 21 },
+  ];
+  dirs.forEach((d) => {
+    const sa = geogToScreenAngle(d.geog);
+    const pos = compassPos(sa, COMPASS_R - 23);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.beginPath();
+    ctx.roundRect(pos.x - 14, pos.y - 14, 28, 28, 7);
+    ctx.fill();
+    ctx.font = `bold ${d.size}px Microsoft YaHei, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = d.color;
+    ctx.fillText(d.label, pos.x, pos.y);
+  });
+
+  ctx.restore();
+}
+
+function drawPole() {
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.beginPath();
+  ctx.ellipse(CX, CY + 4, POLE_W * 1.6, POLE_W * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const pg = ctx.createLinearGradient(CX - POLE_W / 2, 0, CX + POLE_W / 2, 0);
+  pg.addColorStop(0, "#8B6914");
+  pg.addColorStop(0.3, "#D4A843");
+  pg.addColorStop(0.58, "#C4882A");
+  pg.addColorStop(1, "#7a5a10");
+  ctx.fillStyle = pg;
+  const px = CX - POLE_W / 2, py = CY - POLE_H;
+  ctx.beginPath();
+  ctx.roundRect(px, py, POLE_W, POLE_H, [POLE_W / 2, POLE_W / 2, 2, 2]);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawShadow(az, el) {
+  if (el < 1) return;
+  const { screenAng, len } = getShadow(az, el);
+  const rad = screenAng * Math.PI / 180;
+  const tipX = CX + Math.sin(rad) * len;
+  const tipY = CY - Math.cos(rad) * len;
+  ctx.save();
+  const perpRad = rad + Math.PI / 2;
+  const hw = POLE_W * 0.5;
+  const bx1 = CX + Math.sin(perpRad) * hw, by1 = CY - Math.cos(perpRad) * hw;
+  const bx2 = CX - Math.sin(perpRad) * hw, by2 = CY + Math.cos(perpRad) * hw;
+  const tx1 = tipX + Math.sin(perpRad) * hw, ty1 = tipY - Math.cos(perpRad) * hw;
+  const tx2 = tipX - Math.sin(perpRad) * hw, ty2 = tipY + Math.cos(perpRad) * hw;
+  const shadowGrad = ctx.createLinearGradient(CX, CY, tipX, tipY);
+  shadowGrad.addColorStop(0, "rgba(0,0,0,0.58)");
+  shadowGrad.addColorStop(0.5, "rgba(0,0,0,0.30)");
+  shadowGrad.addColorStop(0.85, "rgba(0,0,0,0.10)");
+  shadowGrad.addColorStop(1, "rgba(0,0,0,0.00)");
+  ctx.beginPath();
+  ctx.moveTo(bx1, by1);
+  ctx.lineTo(bx2, by2);
+  ctx.lineTo(tx2, ty2);
+  ctx.lineTo(tx1, ty1);
+  ctx.closePath();
+  ctx.fillStyle = shadowGrad;
+  ctx.fill();
+  ctx.restore();
+}
+
+function getOrbitPoints(steps = 120) {
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const { az, el } = sunOrbitPos(t);
+    const pos = getSunScreenPos(az, el);
+    if (pos) pts.push({ x: pos.x, y: pos.y, t, el, az });
+  }
+  return pts;
+}
+
+function drawOrbit() {
+  const pts = getOrbitPoints(200);
+  if (pts.length < 2) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+  ctx.strokeStyle = "rgba(255,205,55,0.62)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const cfg = getActiveSolarConfig();
+  const startHour = Math.ceil(cfg.sunrise);
+  const endHour = Math.floor(cfg.sunset);
+  for (let h = startHour; h <= endHour; h++) {
+    const t = (h - cfg.sunrise) / (cfg.sunset - cfg.sunrise);
+    if (t <= 0.02 || t >= 0.98) continue;
+    const { az, el } = sunOrbitPos(t);
+    const pos = getSunScreenPos(az, el);
+    if (!pos) continue;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = h === 12 ? "#ff9900" : "rgba(255,200,40,0.95)";
+    ctx.fill();
+    ctx.font = "bold 13px Microsoft YaHei, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,245,200,0.97)";
+    ctx.fillText(`${h}时`, pos.x, pos.y - 20);
+  }
+  ctx.restore();
+}
+
+function drawSunOnDisk(az, el) {
+  const pos = getSunScreenPos(az, el);
+  if (!pos) return;
+  ctx.save();
+  const glowR = 26 + (el / 90) * 10;
+  const outerGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR * 2.4);
+  if (el < 5) {
+    outerGlow.addColorStop(0, "rgba(255,110,40,0.85)");
+    outerGlow.addColorStop(0.5, "rgba(255,70,15,0.35)");
+    outerGlow.addColorStop(1, "rgba(255,50,0,0)");
+  } else {
+    outerGlow.addColorStop(0, "rgba(255,245,120,0.90)");
+    outerGlow.addColorStop(0.5, "rgba(255,210,55,0.38)");
+    outerGlow.addColorStop(1, "rgba(255,200,50,0)");
+  }
+  ctx.fillStyle = outerGlow;
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, glowR * 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  const sunGrad = ctx.createRadialGradient(pos.x - glowR * 0.3, pos.y - glowR * 0.3, glowR * 0.08, pos.x, pos.y, glowR);
+  if (el < 5) {
+    sunGrad.addColorStop(0, "#fff0d0");
+    sunGrad.addColorStop(0.45, "#ff9944");
+    sunGrad.addColorStop(1, "#ee3800");
+  } else {
+    sunGrad.addColorStop(0, "#fffde7");
+    sunGrad.addColorStop(0.45, "#ffe833");
+    sunGrad.addColorStop(1, "#ff9900");
+  }
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, glowR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawRay(az, el) {
+  if (el < 1) return;
+  const pos = getSunScreenPos(az, el);
+  if (!pos) return;
+  ctx.save();
+  const endX = CX, endY = CY - POLE_H * 0.5;
+  const rayGrad = ctx.createLinearGradient(pos.x, pos.y, endX, endY);
+  rayGrad.addColorStop(0, "rgba(255,225,100,0.0)");
+  rayGrad.addColorStop(0.35, "rgba(255,225,100,0.42)");
+  rayGrad.addColorStop(1, "rgba(255,225,100,0.18)");
+  ctx.strokeStyle = rayGrad;
+  ctx.lineWidth = 2.2;
+  ctx.setLineDash([7, 5]);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function geogAzLabel(az) {
+  const dirs = ["北","北偏东","东北","东偏北","东","东偏南","东南","南偏东","南","南偏西","西南","西偏南","西","西偏北","西北","北偏西"];
+  const idx = Math.round(((az % 360) + 360) % 360 / 22.5) % 16;
+  return dirs[idx];
+}
+
+function formatHour(hourFloat) {
+  const h = Math.floor(hourFloat);
+  const m = Math.floor((hourFloat - h) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function formatLat(lat) {
+  return `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? "N" : "S"}`;
+}
+
+function updateInfoPanel(az, el) {
+  const cfg = getActiveSolarConfig();
+  const point = OBS_POINTS[currentPoint];
+  const h = cfg.sunrise + sunProgress * (cfg.sunset - cfg.sunrise);
+  document.getElementById("val-place").textContent = point.label;
+  document.getElementById("val-lat").textContent = formatLat(point.lat);
+  document.getElementById("val-time").textContent = formatHour(h);
+  document.getElementById("val-rise-set").textContent = `${formatHour(cfg.sunrise)} / ${formatHour(cfg.sunset)}`;
+  document.getElementById("val-dir").textContent = geogAzLabel(az);
+  const { shadowAz } = getShadow(az, el);
+  document.getElementById("val-shadow").textContent = el < 1 ? "—" : geogAzLabel(shadowAz);
+  let lenLabel;
+  if (el < 2) lenLabel = "极长";
+  else if (el < 20) lenLabel = "较长";
+  else if (el < 40) lenLabel = "中等";
+  else if (el < 60) lenLabel = "较短";
+  else lenLabel = "最短";
+  document.getElementById("val-len").textContent = lenLabel;
+}
+
+function startAuto() {
+  autoPlay = true;
+  lastTs = null;
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(animLoop);
+}
+
+function stopAuto() {
+  autoPlay = false;
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  lastTs = null;
+}
+
+function animLoop(ts) {
+  if (!autoPlay) return;
+  if (lastTs === null) lastTs = ts;
+  const dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  sunProgress += dt * autoSpeed * 0.04;
+  if (sunProgress > 1) sunProgress = 0;
+  redraw();
+  animId = requestAnimationFrame(animLoop);
+}
+
+function setSpeed(s) {
+  autoSpeed = s;
+  document.querySelectorAll(".speed-btn").forEach((b) => {
+    b.classList.toggle("active", parseFloat(b.dataset.spd) === s);
+  });
+}
+
+function resetScene() {
+  stopAuto();
+  sunProgress = 0.0;
+  redraw();
+}
+
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll(".mode-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.mode === m);
+  });
+  redraw();
+}
+
+function setObservationPoint(pointKey) {
+  currentPoint = pointKey;
+  redraw();
+}
+
+function setZoom(v) {
+  zoom = v / 100;
+  document.getElementById("zoom-label").textContent = v + "%";
+  document.getElementById("scene-wrapper").style.transform = `scale(${zoom})`;
+}
+
+let panelVisible = true;
+function togglePanel() {
+  panelVisible = !panelVisible;
+  const p = document.getElementById("control-panel");
+  p.style.opacity = panelVisible ? "1" : "0";
+  p.style.pointerEvents = panelVisible ? "auto" : "none";
+}
+
+function getRelPos(e) {
+  const rect = sceneCanvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  let cx, cy;
+  if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+  else { cx = e.clientX; cy = e.clientY; }
+  return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY };
+}
+
+function getProgressFromPos(x, y) {
+  const pts = getOrbitPoints(250);
+  let best = null, bestDist = Infinity;
+  pts.forEach((p) => {
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < bestDist) { bestDist = d; best = p; }
+  });
+  return best ? best.t : sunProgress;
+}
+
+sceneCanvas.addEventListener("mousedown", (e) => {
+  const pos = getRelPos(e);
+  const { az, el } = sunOrbitPos(sunProgress);
+  const sp = getSunScreenPos(az, el);
+  if (sp && Math.hypot(pos.x - sp.x, pos.y - sp.y) < 52) {
+    isDragging = true;
+    stopAuto();
+    e.preventDefault();
+  }
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+  const pos = getRelPos(e);
+  sunProgress = clamp(getProgressFromPos(pos.x, pos.y), 0, 1);
+  redraw();
+});
+
+window.addEventListener("mouseup", () => { isDragging = false; });
+
+sceneCanvas.addEventListener("touchstart", (e) => {
+  const pos = getRelPos(e);
+  const { az, el } = sunOrbitPos(sunProgress);
+  const sp = getSunScreenPos(az, el);
+  if (sp && Math.hypot(pos.x - sp.x, pos.y - sp.y) < 62) {
+    isDragging = true;
+    stopAuto();
+    e.preventDefault();
+  }
+}, { passive: false });
+
+window.addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
+  const p = getRelPos(e);
+  sunProgress = clamp(getProgressFromPos(p.x, p.y), 0, 1);
+  redraw();
+  e.preventDefault();
+}, { passive: false });
+
+window.addEventListener("touchend", () => { isDragging = false; });
+
+sceneCanvas.addEventListener("click", (e) => {
+  if (isDragging) return;
+  const pos = getRelPos(e);
+  const pts = getOrbitPoints(250);
+  let bestDist = Infinity, bestT = null;
+  pts.forEach((p) => {
+    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+    if (d < bestDist) { bestDist = d; bestT = p.t; }
+  });
+  if (bestDist < 40) {
+    sunProgress = bestT;
+    redraw();
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  const step = 0.02;
+  if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") {
+    stopAuto();
+    sunProgress = clamp(sunProgress + step, 0, 1);
+    redraw();
+  } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
+    stopAuto();
+    sunProgress = clamp(sunProgress - step, 0, 1);
+    redraw();
+  } else if (e.key === " ") {
+    e.preventDefault();
+    if (autoPlay) stopAuto();
+    else startAuto();
+  }
+});
+
+resizeCanvases();
+document.getElementById("point-select").value = currentPoint;
+sunProgress = 0.08;
+redraw();
+</script>
+</body>
+</html>
