@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>小学科学互动课堂：种子生长模拟</title>
+  <style>
+    :root {
+      --bg: #f3fbf3;
+      --card: #ffffff;
+      --text: #1f2a37;
+      --ok: #2e7d32;
+      --warn: #ef6c00;
+      --bad: #c62828;
+      --line: #d9e2ec;
+      --brand: #2f855a;
+      --muted: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #e8f8ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.8rem;
+    }
+
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .plant-visual {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .emoji {
+      font-size: 4rem;
+      line-height: 1;
+    }
+
+    .status-title {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .status-text {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      background: #dff3e6;
+      color: #0f5132;
+      font-weight: 700;
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: transform .06s ease, filter .2s ease;
+    }
+
+    button:hover {
+      filter: brightness(0.97);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.bad-action {
+      background: #ffe8e8;
+      color: #8d1a1a;
+    }
+
+    button.primary {
+      background: #2f855a;
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .metric-row {
+      margin-bottom: 12px;
+    }
+
+    .metric-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: .95rem;
+      margin-bottom: 4px;
+    }
+
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: #edf2f7;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #68d391, #2f855a);
+      transition: width .25s ease;
+    }
+
+    .timeline {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stage-box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: .82rem;
+      background: #fafdfa;
+      min-height: 64px;
+    }
+
+    .stage-box.active {
+      border-color: #6fbf82;
+      background: #eaf8ef;
+    }
+
+    .stage-box.done {
+      border-color: #b8e6c2;
+      background: #f2fcf4;
+      color: #2f6f43;
+    }
+
+    .log-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .log-item {
+      border-bottom: 1px dashed #e5e7eb;
+      padding: 8px 0;
+      font-size: .92rem;
+      line-height: 1.45;
+    }
+
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      font-size: .75rem;
+      padding: 1px 8px;
+      margin-right: 6px;
+      font-weight: 700;
+    }
+
+    .tag.info { background: #e6f4ea; color: #1d6f42; }
+    .tag.warn { background: #fff4e6; color: var(--warn); }
+    .tag.bad { background: #fdeaea; color: var(--bad); }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 270px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 840px;
+      font-size: .88rem;
+      background: #fff;
+    }
+
+    th, td {
+      border-bottom: 1px solid #eef2f7;
+      text-align: left;
+      padding: 8px;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 1;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .actions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .timeline {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>小学科学互动课堂：种子种植与生长</h1>
+    <p class="subtitle">
+      通过操作按钮体验“播种→发芽→幼苗→生长→开花→成熟”的过程。
+      如果出现过量浇水、过量施肥、暴晒或拔苗助长，植物会出现异常表现并给出提示。
+    </p>
+
+    <section class="grid">
+      <article class="card">
+        <div class="plant-visual">
+          <div class="emoji" id="plantEmoji">🫘</div>
+          <div>
+            <h2 class="status-title" id="stageTitle">还未播种</h2>
+            <p class="status-text" id="statusText">点击“播种”开始课堂实验。</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="btnPlant">播种</button>
+          <button id="btnWater">浇水</button>
+          <button id="btnFertilize">施肥</button>
+          <button id="btnSun">晒太阳</button>
+          <button id="btnWeed">除草松土</button>
+          <button class="bad-action" id="btnPull">拔苗助长（错误示范）</button>
+          <button class="primary" id="btnNextDay">进入下一天</button>
+          <button id="btnReset">重新开始</button>
+        </div>
+
+        <p class="hint">课堂建议：每过一天前，合理安排浇水、施肥和光照，让资源保持在“适宜区间”。</p>
+      </article>
+
+      <article class="card">
+        <div class="metric-row">
+          <div class="metric-head"><span>生长进度</span><span id="growthText">0%</span></div>
+          <div class="bar"><span id="growthBar"></span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-head"><span>健康值</span><span id="healthText">100</span></div>
+          <div class="bar"><span id="healthBar"></span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-head"><span>土壤水分（适宜 35~70）</span><span id="waterText">45</span></div>
+          <div class="bar"><span id="waterBar"></span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-head"><span>土壤养分（适宜 30~70）</span><span id="nutrientText">45</span></div>
+          <div class="bar"><span id="nutrientBar"></span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-head"><span>光照强度（适宜 35~80）</span><span id="lightText">50</span></div>
+          <div class="bar"><span id="lightBar"></span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-head"><span>实验天数</span><span id="dayText">第 0 天</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:16px;">
+      <h3 style="margin:0 0 8px;">生长阶段时间线</h3>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="grid" style="margin-top:16px;">
+      <article class="card">
+        <h3 style="margin-top:0;">课堂提示与反馈</h3>
+        <ul class="log-list" id="logList"></ul>
+      </article>
+      <article class="card">
+        <h3 style="margin-top:0;">阶段生长数据（按天记录）</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>天数</th>
+                <th>天气</th>
+                <th>阶段</th>
+                <th>生长值</th>
+                <th>健康值</th>
+                <th>水分</th>
+                <th>养分</th>
+                <th>光照</th>
+                <th>说明</th>
+              </tr>
+            </thead>
+            <tbody id="recordBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const STAGES = [
+      { min: 0, name: "播种期", tip: "把种子放入土壤并保持微湿。" },
+      { min: 15, name: "发芽期", tip: "幼芽出现，需要温和环境。" },
+      { min: 35, name: "幼苗期", tip: "叶片增多，注意均衡养护。" },
+      { min: 60, name: "生长期", tip: "长势加快，资源需求上升。" },
+      { min: 85, name: "开花期", tip: "生理活动活跃，避免刺激过强。" },
+      { min: 100, name: "成熟期", tip: "完成生长，可收获观察结果。" }
+    ];
+
+    const weatherPool = [
+      { name: "晴天", water: -4, light: +10, note: "阳光充足，蒸发加快。" },
+      { name: "阴天", water: -1, light: -8, note: "光照偏弱，生长略慢。" },
+      { name: "小雨", water: +12, light: -3, note: "补充水分，光照稍弱。" },
+      { name: "高温", water: -10, light: +14, note: "蒸发快，注意补水。" },
+      { name: "大雨", water: +20, light: -5, note: "土壤偏湿，警惕积水。" }
+    ];
+
+    const state = {
+      planted: false,
+      day: 0,
+      growth: 0,
+      health: 100,
+      water: 45,
+      nutrient: 45,
+      light: 50,
+      records: [],
+      logs: []
+    };
+
+    const els = {
+      plantEmoji: document.getElementById("plantEmoji"),
+      stageTitle: document.getElementById("stageTitle"),
+      statusText: document.getElementById("statusText"),
+      growthText: document.getElementById("growthText"),
+      growthBar: document.getElementById("growthBar"),
+      healthText: document.getElementById("healthText"),
+      healthBar: document.getElementById("healthBar"),
+      waterText: document.getElementById("waterText"),
+      waterBar: document.getElementById("waterBar"),
+      nutrientText: document.getElementById("nutrientText"),
+      nutrientBar: document.getElementById("nutrientBar"),
+      lightText: document.getElementById("lightText"),
+      lightBar: document.getElementById("lightBar"),
+      dayText: document.getElementById("dayText"),
+      timeline: document.getElementById("timeline"),
+      logList: document.getElementById("logList"),
+      recordBody: document.getElementById("recordBody"),
+      btnPlant: document.getElementById("btnPlant"),
+      btnWater: document.getElementById("btnWater"),
+      btnFertilize: document.getElementById("btnFertilize"),
+      btnSun: document.getElementById("btnSun"),
+      btnWeed: document.getElementById("btnWeed"),
+      btnPull: document.getElementById("btnPull"),
+      btnNextDay: document.getElementById("btnNextDay"),
+      btnReset: document.getElementById("btnReset")
+    };
+
+    function clamp(v, min = 0, max = 100) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function currentStageIndex() {
+      let idx = 0;
+      for (let i = 0; i < STAGES.length; i += 1) {
+        if (state.growth >= STAGES[i].min) idx = i;
+      }
+      return idx;
+    }
+
+    function currentStage() {
+      return STAGES[currentStageIndex()];
+    }
+
+    function addLog(message, type = "info") {
+      state.logs.unshift({ message, type, day: state.day });
+      state.logs = state.logs.slice(0, 14);
+    }
+
+    function addRecord(weather, note) {
+      state.records.unshift({
+        day: state.day,
+        weather,
+        stage: state.health <= 0 ? "枯萎" : currentStage().name,
+        growth: state.growth,
+        health: state.health,
+        water: state.water,
+        nutrient: state.nutrient,
+        light: state.light,
+        note
+      });
+      state.records = state.records.slice(0, 35);
+    }
+
+    function requirePlanted(actionName) {
+      if (!state.planted) {
+        addLog(`还没播种，不能执行“${actionName}”。先点击播种。`, "warn");
+        render();
+        return false;
+      }
+      if (state.health <= 0) {
+        addLog("植物已枯萎，无法继续操作。请点击“重新开始”。", "bad");
+        render();
+        return false;
+      }
+      if (state.growth >= 100) {
+        addLog("植物已成熟，本轮实验结束。可重新开始新实验。", "info");
+        render();
+        return false;
+      }
+      return true;
+    }
+
+    function evaluateImmediateStress(source) {
+      let warned = false;
+      if (state.water > 85) {
+        state.health -= 7;
+        addLog(`${source}后土壤过湿，根系呼吸受阻。请减少浇水。`, "warn");
+        warned = true;
+      }
+      if (state.nutrient > 85) {
+        state.health -= 8;
+        addLog(`${source}后肥料过量，可能造成“烧根”。`, "warn");
+        warned = true;
+      }
+      if (state.light > 90) {
+        state.health -= 6;
+        addLog(`${source}后光照过强，叶片有灼伤风险。`, "warn");
+        warned = true;
+      }
+      if (!warned) {
+        addLog(`${source}操作完成，当前条件总体可控。`, "info");
+      }
+      state.health = clamp(state.health);
+    }
+
+    function plantSeed() {
+      if (state.planted) {
+        addLog("已经播种过了，继续养护并进入下一天观察变化。", "info");
+        render();
+        return;
+      }
+      state.planted = true;
+      addLog("播种成功：种子已入土，实验开始！", "info");
+      addRecord("无", "完成播种");
+      render();
+    }
+
+    function waterPlant() {
+      if (!requirePlanted("浇水")) return;
+      state.water = clamp(state.water + 18);
+      evaluateImmediateStress("浇水");
+      render();
+    }
+
+    function fertilizePlant() {
+      if (!requirePlanted("施肥")) return;
+      state.nutrient = clamp(state.nutrient + 20);
+      evaluateImmediateStress("施肥");
+      render();
+    }
+
+    function sunPlant() {
+      if (!requirePlanted("晒太阳")) return;
+      state.light = clamp(state.light + 16);
+      evaluateImmediateStress("晒太阳");
+      render();
+    }
+
+    function weedAndLoosen() {
+      if (!requirePlanted("除草松土")) return;
+      state.health = clamp(state.health + 6);
+      state.water = clamp(state.water - 4);
+      state.nutrient = clamp(state.nutrient - 2);
+      addLog("除草松土完成：通气更好，健康值略有提升。", "info");
+      render();
+    }
+
+    function pullSeedling() {
+      if (!requirePlanted("拔苗助长")) return;
+      state.growth = clamp(state.growth + 6);
+      state.health = clamp(state.health - 24);
+      addLog("错误示范：拔苗助长会破坏根系，健康值大幅下降！", "bad");
+      if (state.health <= 0) {
+        addLog("植物因受损严重而枯萎。", "bad");
+      }
+      render();
+    }
+
+    function getDailyAdjustment(value, idealMin, idealMax, lowDanger, highDanger) {
+      if (value >= idealMin && value <= idealMax) return { growth: +4, health: +2, note: "条件适宜" };
+      if (value < lowDanger || value > highDanger) return { growth: -3, health: -10, note: "条件严重失衡" };
+      return { growth: +1, health: -3, note: "条件偏离适宜区" };
+    }
+
+    function nextDay() {
+      if (!requirePlanted("进入下一天")) return;
+
+      state.day += 1;
+      const weather = weatherPool[Math.floor(Math.random() * weatherPool.length)];
+      state.water += weather.water;
+      state.light += weather.light;
+
+      state.water -= 10;
+      state.nutrient -= 8;
+      state.light -= 6;
+
+      state.water = clamp(state.water);
+      state.nutrient = clamp(state.nutrient);
+      state.light = clamp(state.light);
+
+      const w = getDailyAdjustment(state.water, 35, 70, 20, 90);
+      const n = getDailyAdjustment(state.nutrient, 30, 70, 15, 90);
+      const l = getDailyAdjustment(state.light, 35, 80, 20, 95);
+
+      const growthGain = clamp(8 + w.growth + n.growth + l.growth, 0, 18);
+      const healthDelta = w.health + n.health + l.health;
+      state.growth = clamp(state.growth + growthGain);
+      state.health = clamp(state.health + healthDelta);
+
+      let note = `${weather.note} 今日生长+${growthGain}。`;
+      if (state.health <= 0) {
+        state.health = 0;
+        note += " 植物枯萎。";
+        addLog(`第${state.day}天：植物枯萎，原因是环境条件长期失衡。`, "bad");
+      } else if (state.growth >= 100) {
+        state.growth = 100;
+        note += " 植物已成熟，实验达成目标！";
+        addLog(`第${state.day}天：恭喜，植物进入成熟期！`, "info");
+      } else if (healthDelta < 0) {
+        addLog(`第${state.day}天：${weather.name}，环境有些不合适，请调整养护策略。`, "warn");
+      } else {
+        addLog(`第${state.day}天：${weather.name}，生长状态良好。`, "info");
+      }
+
+      addRecord(weather.name, note);
+      render();
+    }
+
+    function resetGame() {
+      state.planted = false;
+      state.day = 0;
+      state.growth = 0;
+      state.health = 100;
+      state.water = 45;
+      state.nutrient = 45;
+      state.light = 50;
+      state.records = [];
+      state.logs = [];
+      addLog("实验已重置。点击“播种”开始新一轮观察。", "info");
+      render();
+    }
+
+    function stageVisual() {
+      if (!state.planted) {
+        return { emoji: "🫘", text: "还未播种", detail: "请先播种，观察生长变化。" };
+      }
+      if (state.health <= 0) {
+        return { emoji: "🥀", text: "植物枯萎", detail: "环境条件失衡或错误操作导致植物死亡。" };
+      }
+      if (state.growth >= 100) {
+        return { emoji: "🌻", text: "成熟期", detail: "种子已完成生长，可以总结实验规律。" };
+      }
+
+      const idx = currentStageIndex();
+      const stage = STAGES[idx];
+      const stressTags = [];
+      if (state.water > 85) stressTags.push("土壤过湿");
+      if (state.nutrient > 85) stressTags.push("肥料过量");
+      if (state.light > 90) stressTags.push("光照过强");
+      if (state.water < 20) stressTags.push("缺水");
+      if (state.nutrient < 15) stressTags.push("缺肥");
+      if (state.light < 20) stressTags.push("光照不足");
+
+      const emojiByStage = ["🌱", "🌿", "🪴", "🌳", "🌼", "🌻"];
+      const emoji = state.health < 45 ? "🍂" : emojiByStage[idx];
+      const detail = stressTags.length
+        ? `当前异常：${stressTags.join("、")}。请及时调整。`
+        : stage.tip;
+      return { emoji, text: stage.name, detail };
+    }
+
+    function renderTimeline() {
+      const idx = currentStageIndex();
+      els.timeline.innerHTML = "";
+      STAGES.forEach((stage, i) => {
+        const card = document.createElement("div");
+        card.className = "stage-box";
+        if (state.planted && i < idx) card.classList.add("done");
+        if (state.planted && i === idx && state.health > 0) card.classList.add("active");
+        card.innerHTML = `<strong>${stage.name}</strong><br>目标生长值 ≥ ${stage.min}`;
+        els.timeline.appendChild(card);
+      });
+    }
+
+    function renderLogs() {
+      els.logList.innerHTML = "";
+      state.logs.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "log-item";
+        const label = item.type === "bad" ? "错误" : item.type === "warn" ? "提示" : "正常";
+        li.innerHTML = `<span class="tag ${item.type}">${label}</span>第${item.day}天：${item.message}`;
+        els.logList.appendChild(li);
+      });
+    }
+
+    function renderRecords() {
+      els.recordBody.innerHTML = "";
+      if (!state.records.length) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = '<td colspan="9" style="color:#6b7280;">暂无数据，先播种并进入下一天。</td>';
+        els.recordBody.appendChild(tr);
+        return;
+      }
+      state.records.forEach((r) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>第${r.day}天</td>
+          <td>${r.weather}</td>
+          <td>${r.stage}</td>
+          <td>${r.growth}%</td>
+          <td>${r.health}</td>
+          <td>${r.water}</td>
+          <td>${r.nutrient}</td>
+          <td>${r.light}</td>
+          <td>${r.note}</td>
+        `;
+        els.recordBody.appendChild(tr);
+      });
+    }
+
+    function renderButtons() {
+      const disabled = !state.planted || state.health <= 0 || state.growth >= 100;
+      els.btnPlant.disabled = state.planted;
+      els.btnWater.disabled = disabled;
+      els.btnFertilize.disabled = disabled;
+      els.btnSun.disabled = disabled;
+      els.btnWeed.disabled = disabled;
+      els.btnPull.disabled = disabled;
+      els.btnNextDay.disabled = disabled;
+    }
+
+    function render() {
+      const visual = stageVisual();
+      els.plantEmoji.textContent = visual.emoji;
+      els.stageTitle.textContent = visual.text;
+      els.statusText.textContent = visual.detail;
+
+      els.growthText.textContent = `${state.growth}%`;
+      els.healthText.textContent = `${state.health}`;
+      els.waterText.textContent = `${state.water}`;
+      els.nutrientText.textContent = `${state.nutrient}`;
+      els.lightText.textContent = `${state.light}`;
+      els.dayText.textContent = `第 ${state.day} 天`;
+
+      els.growthBar.style.width = `${state.growth}%`;
+      els.healthBar.style.width = `${state.health}%`;
+      els.waterBar.style.width = `${state.water}%`;
+      els.nutrientBar.style.width = `${state.nutrient}%`;
+      els.lightBar.style.width = `${state.light}%`;
+
+      renderTimeline();
+      renderLogs();
+      renderRecords();
+      renderButtons();
+    }
+
+    els.btnPlant.addEventListener("click", plantSeed);
+    els.btnWater.addEventListener("click", waterPlant);
+    els.btnFertilize.addEventListener("click", fertilizePlant);
+    els.btnSun.addEventListener("click", sunPlant);
+    els.btnWeed.addEventListener("click", weedAndLoosen);
+    els.btnPull.addEventListener("click", pullSeedling);
+    els.btnNextDay.addEventListener("click", nextDay);
+    els.btnReset.addEventListener("click", resetGame);
+
+    addLog("欢迎来到互动课堂：请先播种。", "info");
+    render();
+  </script>
+</body>
+</html>
