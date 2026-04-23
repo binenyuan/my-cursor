@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant P as 省公司
+    participant G as 集团公司
+
+    %% 初次审核
+    P->>G: 提交审核申请
+    activate G
+    G->>G: 审核申请材料
+    alt 初审通过
+        G-->>P: 返回“审核通过”结果
+    else 初审驳回
+        G-->>P: 返回“驳回”结果（附驳回原因）
+    end
+    deactivate G
+
+    %% 仅针对已审核通过任务
+    opt 初审通过后
+        P->>G: 提交修改审核申请
+        activate G
+        G->>G: 审核修改内容
+        alt 修改审核通过
+            G-->>P: 返回“修改审核通过”结果
+        else 修改审核驳回
+            G-->>P: 返回“修改审核驳回”结果（附驳回原因）
+        end
+        deactivate G
+    end
