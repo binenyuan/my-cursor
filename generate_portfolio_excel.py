@@ -57,8 +57,8 @@ def build_current_holdings(wb):
     ws["A1"].font = TITLE_FONT
     ws.merge_cells("A1:N1")
 
-    ws["A2"] = "基准日期：2026-07-17  |  账户总市值："
-    ws["K2"] = 434050
+    ws["A2"] = "数据更新：请运行 update_portfolio_excel.py  |  账户总市值："
+    ws["K2"] = "=SUM(G5:G15)"
     ws["K2"].number_format = '#,##0'
     ws["L2"] = "元"
     ws.merge_cells("A2:J2")
@@ -572,11 +572,20 @@ def build_readme(wb):
         ("第3步：买入红利ETF(510880)和沪深300ETF(510300)", None),
         ("第4步：剩余资金转入货币基金", None),
         ("", None),
+        ("【自动更新行情】", BOLD),
+        ("1. 安装依赖：pip install -r requirements.txt", None),
+        ("2. 手动更新：python3 update_portfolio_excel.py", None),
+        ("3. 每日定时：./run_daily_update.sh（建议交易日 15:30 运行）", None),
+        ("4. 更新内容：现价、涨跌幅、上证指数、跌停家数、更新日志", None),
+        ("5. Mac/Linux 定时任务示例：", None),
+        ("   30 15 * * 1-5 cd /path/to/workspace && ./run_daily_update.sh >> update.log 2>&1", None),
+        ("", None),
         ("【重要提醒】", BOLD),
         ("• 本表仅为投资辅助工具，不构成投资建议", None),
         ("• 止损价触发后请严格执行，不要抱幻想", None),
         ("• 加仓须满足「每日监控」表底部条件检查", None),
         ("• 红利ETF和沪深300ETF买入价按估算填入，请以实际成交价更新成本", None),
+        ("• 非交易时段/周末运行将获取最近一个交易日收盘数据", None),
         ("", None),
         ("基准日期：2026-07-17  |  账户总市值：434,050 元", None),
     ]
